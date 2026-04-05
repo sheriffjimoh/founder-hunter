@@ -1,6 +1,9 @@
 import { useState } from "react";
 
 export default function SettingsModal({ apiKey, onClose }) {
+  const openaiKey = process.env.REACT_APP_OPENAI_KEY;
+  const perplexityKey = process.env.REACT_APP_PERPLEXITY_KEY;
+  const activeProvider = openaiKey ? "OpenAI" : perplexityKey ? "Perplexity" : "None";
   const masked = apiKey ? `${apiKey.slice(0, 10)}••••••${apiKey.slice(-4)}` : "Not configured";
   return (
     <div style={{
@@ -15,10 +18,10 @@ export default function SettingsModal({ apiKey, onClose }) {
           API Configuration
         </h3>
         <p style={{ color: "#8b949e", fontSize: 13, margin: "0 0 20px", lineHeight: 1.5 }}>
-          Anthropic API key is loaded from your <code style={{ color: "#e6edf3" }}>.env</code> file. Get one at console.anthropic.com
+          AI keys are loaded from your <code style={{ color: "#e6edf3" }}>.env</code> file. Active provider: <strong style={{ color: "#3fb950" }}>{activeProvider}</strong>
         </p>
         <label style={{ color: "#8b949e", fontSize: 12, fontFamily: "monospace", letterSpacing: "0.08em" }}>
-          ANTHROPIC API KEY
+          ACTIVE API KEY
         </label>
         <div style={{
           display: "block", width: "100%", marginTop: 6, marginBottom: 20,
@@ -33,7 +36,7 @@ export default function SettingsModal({ apiKey, onClose }) {
           }}>Close</button>
         </div>
         <p style={{ marginTop: 16, color: "#484f58", fontSize: 11, lineHeight: 1.5 }}>
-          Set <code style={{ color: "#8b949e" }}>REACT_APP_ANTHROPIC_KEY</code> in your <code style={{ color: "#8b949e" }}>.env</code> file. Proxied server-side — never exposed to the browser.
+          Set <code style={{ color: "#8b949e" }}>REACT_APP_OPENAI_KEY</code> or <code style={{ color: "#8b949e" }}>REACT_APP_PERPLEXITY_KEY</code> in your <code style={{ color: "#8b949e" }}>.env</code> file. Proxied server-side — never exposed to the browser.
         </p>
       </div>
     </div>

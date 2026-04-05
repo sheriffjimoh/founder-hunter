@@ -3,7 +3,7 @@ import { PROFILES } from "../lib/profiles";
 import StatusBadge from "./StatusBadge";
 import SourceBadge from "./SourceBadge";
 
-export default function LeadRow({ lead, activeProfile, onUpdate, onSend, onGenerate, isGenerating }) {
+export default function LeadRow({ lead, activeProfile, onUpdate, onSend, onGenerate, onFindEmail, isGenerating }) {
   const [expanded, setExpanded] = useState(false);
   const [editingDraft, setEditingDraft] = useState(false);
   const [draftText, setDraftText] = useState(lead.draft || "");
@@ -37,7 +37,22 @@ export default function LeadRow({ lead, activeProfile, onUpdate, onSend, onGener
             <span style={{ color: "#e6edf3", fontWeight: 600, fontSize: 14 }}>{lead.company}</span>
             <SourceBadge source={lead.source} />
           </div>
-          <div style={{ color: "#8b949e", fontSize: 12 }}>{lead.founder} · {lead.email}</div>
+          <div style={{ color: "#8b949e", fontSize: 12 }}>
+            {lead.founder}{lead.email ? ` · ${lead.email}` : ""}
+            {!lead.email && lead.website && onFindEmail && (
+              <button onClick={e => { e.stopPropagation(); onFindEmail(lead.id); }}
+                style={{
+                  background: "#f59e0b15", color: "#f59e0b", border: "1px solid #f59e0b40",
+                  padding: "1px 6px", borderRadius: 4, fontSize: 10, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "monospace", marginLeft: 6,
+                }}>🔍 Find Email</button>
+            )}
+            {lead.emailConfidence > 0 && (
+              <span style={{ color: "#3fb950", fontSize: 10, marginLeft: 6 }}>
+                {lead.emailConfidence}% match
+              </span>
+            )}
+          </div>
         </div>
         <div>
           <div style={{ color: "#8b949e", fontSize: 11, marginBottom: 2 }}>TRIGGER</div>

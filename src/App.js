@@ -3,7 +3,9 @@ import { PROFILES } from "./lib/profiles";
 import { SEED_LEADS } from "./lib/leads";
 import { buildPrompt } from "./lib/prompts";
 import { scanAllSources, SOURCES } from "./lib/sources";
+import { enrichLead } from "./lib/sources/hunter";
 import LeadRow from "./components/LeadRow";
+import ContactsView from "./components/ContactsView";
 import SettingsModal from "./components/SettingsModal";
 import AddLeadModal from "./components/AddLeadModal";
 import Toast from "./components/Toast";
@@ -23,10 +25,22 @@ export default function FounderHunter() {
   const [toast, setToast] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showAddLead, setShowAddLead] = useState(false);
-  const apiKey = process.env.REACT_APP_ANTHROPIC_KEY || "";
+  const apiKey = process.env.REACT_APP_OPENAI_KEY || process.env.REACT_APP_PERPLEXITY_KEY || "";
   const [filter, setFilter] = useState("All");
   const [scanning, setScanning] = useState(false);
+  const [activeTab, setActiveTab] = useState("leads");
+  const [contacts, setContacts] = useState(() => {
+    try {
+      const stored = localStorage.getItem("fh_contacts");
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
   const profile = PROFILES[activeProfile];
+
+  // Persist contacts to localStorage
+  useEffect(() => {
+    localStorage.setItem("fh_contacts", JSON.stringify(contacts));
+  }, [contacts]);
 
   // Persist leads to localStorage on every change
   useEffect(() => {
@@ -48,7 +62,7 @@ export default function FounderHunter() {
   async function generateDraft(leadId) {
     if (!apiKey) {
       setShowSettings(true);
-      showToast("Add your Anthropic API key to .env first", "error");
+      showToast("Add your OpenAI or Perplexity API key to .env first", "error");
       return;
     }
     const lead = leads.find(l => l.id === leadId);
@@ -57,31 +71,39 @@ export default function FounderHunter() {
 
     try {
       const { system, user } = buildPrompt(lead, activeProfile);
-      const res = await fetch("/api/claude/v1/messages", {
+
+      // Use OpenAI if key exists, otherwise Perplexity
+      const useOpenAI = !!process.env.REACT_APP_OPENAI_KEY;
+      const apiBase = useOpenAI ? "/api/openai" : "/api/perplexity";
+      const model = useOpenAI ? "gpt-4o-mini" : "sonar";
+
+      const res = await fetch(`${apiBase}/v1/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model,
           max_tokens: 1000,
-          system: system,
-          messages: [{ role: "user", content: user }],
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
         }),
       });
       const data = await res.json();
-      const body = data.content?.[0]?.text?.trim();
+      const body = data.choices?.[0]?.message?.content?.trim();
 
       if (!body) {
         showToast("API returned empty draft — check console", "error");
-        console.error("Anthropic response:", data);
+        console.error("API response:", data);
         return;
       }
 
       // Also generate a subject line
-      const subRes = await fetch("/api/claude/v1/messages", {
+      const subRes = await fetch(`${apiBase}/v1/chat/completions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model,
           max_tokens: 100,
           messages: [{
             role: "user",
@@ -90,7 +112,7 @@ export default function FounderHunter() {
         }),
       });
       const subData = await subRes.json();
-      const subject = subData.content?.[0]?.text?.trim().replace(/['"]/g, "") || `re: ${lead.company}`;
+      const subject = subData.choices?.[0]?.message?.content?.trim().replace(/['"]/g, "") || `re: ${lead.company}`;
 
       setLeads(prev => prev.map(l =>
         l.id === leadId
@@ -135,6 +157,26 @@ export default function FounderHunter() {
     setLeads(prev => prev.filter(l => l.id !== id));
   }
 
+  function saveContact(lead) {
+    const exists = contacts.some(c => c.email === lead.email);
+    if (!exists && lead.email) {
+      setContacts(prev => [{
+        id: Date.now(),
+        company: lead.company,
+        name: lead.founder,
+        position: lead.founderPosition || "",
+        email: lead.email,
+        confidence: lead.emailConfidence || 0,
+        domain: lead.website || "",
+        foundAt: new Date().toISOString(),
+      }, ...prev]);
+    }
+  }
+
+  function deleteContact(id) {
+    setContacts(prev => prev.filter(c => c.id !== id));
+  }
+
   // ─── SCAN PLATFORMS ──────────────────────────────────────────────────────
   async function handleScan() {
     setScanning(true);
@@ -142,16 +184,39 @@ export default function FounderHunter() {
       const results = await scanAllSources(leads);
       if (results.leads.length > 0) {
         setLeads(prev => [...results.leads, ...prev]);
-        showToast(`Found ${results.leads.length} new leads from ${results.scanned.join(", ")} ✓`);
+        showToast(`Found ${results.leads.length} new leads from ${results.scanned.join(", ")} \u2713`);
       } else if (results.errors.length > 0) {
         showToast(`Scan errors: ${results.errors.join("; ")}`, "error");
       } else {
-        showToast("No new leads found — all up to date");
+        showToast("No new leads found, all up to date");
       }
     } catch (err) {
-      showToast("Platform scan failed — check console", "error");
+      showToast("Platform scan failed, check console", "error");
     } finally {
       setScanning(false);
+    }
+  }
+
+  // \u2500\u2500\u2500 FIND EMAIL VIA HUNTER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  async function findEmail(leadId) {
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead || !lead.website) {
+      showToast("No website to look up email from", "error");
+      return;
+    }
+    showToast(`Looking up email for ${lead.company}...`);
+    try {
+      const updated = await enrichLead(lead);
+      if (updated.email && updated.email !== lead.email) {
+        setLeads(prev => prev.map(l => l.id === leadId ? updated : l));
+        saveContact(updated);
+        showToast(`Found: ${updated.email} (${updated.founderPosition || "executive"}) \u2713`);
+      } else {
+        showToast("No email found for this domain", "error");
+      }
+    } catch (err) {
+      showToast("Hunter lookup failed, check console", "error");
+      console.error(err);
     }
   }
 
@@ -208,7 +273,7 @@ export default function FounderHunter() {
               {apiKey ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#3fb950", fontSize: 11 }}>
                   <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#3fb950", animation: "pulse 2s infinite" }} />
-                  CLAUDE LIVE
+                  {process.env.REACT_APP_OPENAI_KEY ? "OPENAI LIVE" : "PERPLEXITY LIVE"}
                 </div>
               ) : (
                 <div style={{ color: "#f85149", fontSize: 11 }}>⚠ NO API KEY</div>
@@ -231,9 +296,28 @@ export default function FounderHunter() {
               }}>⚙ Config</button>
             </div>
           </div>
+          {/* ── TAB NAV ── */}
+          <div style={{ display: "flex", gap: 0, maxWidth: 1200, margin: "0 auto" }}>
+            {[{ key: "leads", label: "Leads", count: leads.length }, { key: "contacts", label: "Contacts", count: contacts.length }].map(tab => (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
+                background: "transparent",
+                color: activeTab === tab.key ? "#e6edf3" : "#8b949e",
+                borderBottom: activeTab === tab.key ? "2px solid #58a6ff" : "2px solid transparent",
+                border: "none", borderBottom: activeTab === tab.key ? "2px solid #58a6ff" : "2px solid transparent",
+                padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                fontFamily: "'JetBrains Mono', monospace",
+                transition: "all 0.15s",
+              }}>
+                {tab.label} <span style={{ color: "#484f58", fontSize: 11, marginLeft: 4 }}>({tab.count})</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 32px" }}>
+          {activeTab === "contacts" ? (
+            <ContactsView contacts={contacts} onDelete={deleteContact} />
+          ) : (<>
           {/* ── ACTIVE PROFILE BANNER ── */}
           <div style={{
             background: `linear-gradient(135deg, ${profile.color}08, transparent)`,
@@ -319,15 +403,18 @@ export default function FounderHunter() {
                 onUpdate={updateDraft}
                 onSend={sendLead}
                 onGenerate={generateDraft}
+                onFindEmail={findEmail}
                 isGenerating={generatingId === lead.id}
               />
             ))
           )}
 
+          </>)}
+
           {/* ── FOOTER ── */}
           <div style={{ marginTop: 40, paddingTop: 20, borderTop: "1px solid #21262d", display: "flex", justifyContent: "space-between", color: "#484f58", fontSize: 11 }}>
             <span>Founder-Hunter Outreach-OS · Built for Jimoh</span>
-            <span>Powered by Claude · {new Date().toLocaleDateString()}</span>
+            <span>Powered by {process.env.REACT_APP_OPENAI_KEY ? "OpenAI" : "Perplexity"} · {new Date().toLocaleDateString()}</span>
           </div>
         </div>
 

@@ -25,9 +25,11 @@ export const SOURCES = {
   },
 };
 
+export const hunterAvailable = !!process.env.REACT_APP_HUNTER_KEY;
+
 export async function scanAllSources(existingLeads) {
   const existingNames = new Set(existingLeads.map((l) => l.company.toLowerCase()));
-  const results = { leads: [], errors: [], scanned: [] };
+  const results = { leads: [], errors: [], scanned: [], emailsFound: 0 };
 
   for (const source of Object.values(SOURCES)) {
     if (!source.available || !source.fetch) continue;
