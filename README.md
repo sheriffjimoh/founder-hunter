@@ -1,70 +1,103 @@
-# Getting Started with Create React App
+# 🎯 Founder-Hunter
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+An AI-powered outreach OS for engineers who want to land contracts with startup founders — without sounding like a recruiter.
 
-## Available Scripts
+## What It Does
 
-In the project directory, you can run:
+Founder-Hunter scans startup platforms (Product Hunt, Y Combinator), pulls fresh leads, and uses Claude AI to generate hyper-personalized cold emails that sound like a senior engineer casually reaching out — not a sales pitch.
 
-### `npm start`
+### The Workflow
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+1. **Scan** — Pull new startups from Product Hunt and YC with one click
+2. **Review** — See each lead's company pitch, funding trigger, and source
+3. **Draft** — AI generates a 110–130 word peer-to-peer email tailored to the founder's product
+4. **Edit** — Tweak the draft inline if needed
+5. **Send** — Opens your email client pre-filled with the founder's email, subject, and body
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Personas
 
-### `npm test`
+Switch between two outreach personas:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- **Individual** — Senior Backend Engineer positioning (API design, scaling, AI integration)
+- **Agency** — Fractional CTO positioning (product scaling, 0→scale experience)
 
-### `npm run build`
+Each persona changes the tone, credibility signals, and CTA in generated emails.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Tech Stack
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+- **React** (Create React App)
+- **Claude AI** (Anthropic API) — email generation via server-side proxy
+- **Product Hunt API** — GraphQL, newest launches
+- **YC-OSS API** — public Y Combinator company data
+- **localStorage** — lead persistence across sessions
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Project Structure
 
-### `npm run eject`
+```
+src/
+├── App.js                          # Main app orchestrator
+├── components/
+│   ├── LeadRow.jsx                 # Expandable lead card with draft/send
+│   ├── AddLeadModal.jsx            # Manual lead entry form
+│   ├── SettingsModal.jsx           # API config viewer
+│   ├── StatusBadge.jsx             # New / Drafted / Sent badge
+│   ├── SourceBadge.jsx             # PH / YC / Wellfound badge
+│   └── Toast.jsx                   # Notification popups
+├── lib/
+│   ├── profiles.js                 # Outreach persona definitions
+│   ├── leads.js                    # Initial leads array
+│   ├── prompts.js                  # Claude prompt builder
+│   └── sources/
+│       ├── index.js                # Source aggregator + deduplication
+│       ├── producthunt.js          # Product Hunt GraphQL fetcher
+│       └── ycombinator.js          # YC batch fetcher
+└── styles/
+    └── global.css                  # Fonts, resets, keyframes
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Setup
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+# Install dependencies
+npm install
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# Add your API keys
+cp .env.example .env
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Edit `.env`:
 
-## Learn More
+```env
+REACT_APP_ANTHROPIC_KEY="sk-ant-..."    # Required — Claude AI drafts
+REACT_APP_PH_TOKEN=""                    # Optional — Product Hunt scanning
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+# Start dev server
+npm start
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+The app runs at `http://localhost:3000`. The dev server proxies API calls server-side so keys are never exposed to the browser.
 
-### Code Splitting
+## Platform Support
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+| Platform       | Status       | Setup                                                                 |
+|----------------|--------------|-----------------------------------------------------------------------|
+| Y Combinator   | Ready        | Works immediately — public API                                        |
+| Product Hunt   | Needs token  | Get a developer token at producthunt.com/v2/oauth/applications        |
+| Wellfound      | Manual only  | No public API — use "+ Add Lead"                                      |
 
-### Analyzing the Bundle Size
+## How the AI Works
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Each draft is generated by Claude with a carefully tuned system prompt that enforces:
 
-### Making a Progressive Web App
+- Peer-to-peer tone (engineer → founder, not salesperson → target)
+- One specific technical hook per email
+- No corporate filler ("I hope you're well", bullet points, em-dashes)
+- 110–130 word limit
+- Soft CTA matched to the active persona
+- A separate call generates a lowercase, no-hype subject line
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## License
 
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Private — built for Jimoh.
