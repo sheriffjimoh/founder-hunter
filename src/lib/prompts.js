@@ -3,35 +3,64 @@ import { PROFILES } from "./profiles";
 export function buildPrompt(lead, profile) {
   const p = PROFILES[profile];
   const firstName = (lead.founder || "").split(" ")[0] || "there";
+  
   const triggerMap = {
-    launch: `Congrats on the Product Hunt launch today! Saw ${lead.company}, ${lead.triggerNote}.`,
-    funding: `Saw the recent raise, ${lead.triggerNote}.`,
-    modernization: `I specialize in turning legacy code into 'Clean Core' systems, ${lead.triggerNote}.`,
-    hiring: `Spotted the Founding Engineer role on Wellfound, ${lead.triggerNote}.`,
+    launch: `Was looking at ${lead.company}—managing ${lead.triggerNote} is usually a nightmare for state management.`,
+    funding: `Saw the ${lead.company} raise. Scaling that ${lead.triggerNote} infrastructure is a high-stakes challenge.`,
+    modernization: `Been following how you're handling ${lead.company}. Tackling ${lead.triggerNote} without breaking core logic is impressive.`,
+    hiring: `Saw you're looking for a Founding Engineer. Building ${lead.triggerNote} from 0 to 1 is exactly where I thrive.`,
   };
+  
   const hook = triggerMap[lead.trigger] || lead.triggerNote;
 
+  if (profile === "agency") {
+    return buildAgencyPrompt(p, lead, firstName, hook);
+  }
+  return buildEngineerPrompt(p, lead, firstName, hook);
+}
+
+function buildEngineerPrompt(p, lead, firstName, hook) {
   return {
-    system: `You are a world-class Sales Engineer ghostwriting for a busy engineer named ${p.name}. Write a 110-130 word peer-to-peer cold email.
+    system: `You are Jimoh, a Senior Full Stack Engineer (7+ years). You are writing a direct, peer-level note to a founder to join their team.
 
 STRICT RULES:
-- Start with "Hi ${firstName}," as the salutation. Always use their first name.
-- NEVER use em-dashes (the long dash). Use commas, periods, or "and" instead.
-- No "I hope you're well." No bullet points. No corporate speak. No "I wanted to reach out."
-- Sound like a senior engineer who just happened to notice their product between deploys. Slightly witty, direct, human.
-- Focus on one specific technical bottleneck (scaling, security, or AI integration).
-- End with one soft CTA.
-- Sign off with just "${p.name}".
-- Double check: absolutely zero em-dashes in the output.`,
-    user: `Target: ${firstName} (${lead.founder}) at ${lead.company}
-${lead.founderPosition ? `Their role: ${lead.founderPosition}` : ""}
-Company pitch: ${lead.pitch}
-High-signal hook: ${hook}
-Sender profile: ${p.bio}
-Sender focus: ${p.focus}
-Sender credibility: ${p.credibility}
-CTA to use: ${p.cta}
+- Start with "Hi ${firstName}," (NO "Hi there").
+- NO generic AI words: "tackling," "caught my attention," "head-on," "complexities," "valuable," or "mission."
+- NO "I want to help scale." This sounds like a junior. 
+- USE THIS STRUCTURE: 
+  1. Technical Hook (Directly mention a nightmare bottleneck like state management or data drift).
+  2. The Proof: "I'm a Senior Engineer with 7 years of experience. I built the infrastructure for Dinesurf.com and the AI logic for Masterbots.ai from the ground up."
+  3. The Ask: "I'm looking for my next long-term build where I can take full ownership of the backend."
+- Tone: Professional, blunt, and extremely high-competence. No fluff.
+- Sign off: "Jimoh"`,
 
-Write the cold email now. Start with "Hi ${firstName}," and no subject line, just the body.`,
+    user: `Target: ${firstName} at ${lead.company}. 
+Pitch: ${lead.pitch}
+Context: ${hook}
+Creds: 7+ years. Built Masterbots.ai and Dinesurf.com from scratch. Work remote, zero oversight.
+Task: Write the email now. Lead with a blunt technical challenge about ${lead.pitch}. Mention you built Dinesurf and Masterbots. Ask what the biggest hurdle on their roadmap is. Keep it under 100 words.`
+  };
+}
+
+function buildAgencyPrompt(p, lead, firstName, hook) {
+  return {
+    system: `You are a Solo Founder/Fractional CTO named ${p.name}. You run YourMVPGuy. You are writing to a fellow founder.
+
+STRICT RULES:
+- Start with "Hi ${firstName},"
+- Use "I" (Personal Gmail tone), never "We."
+- NO "Congrats" or "Mission-speak."
+- NO em-dashes.
+- Persona: You build MVPs in 21 days. You help founders ship before they burn their runway.
+- Focus: Speed-to-market and architectural trade-offs. 
+- Goal: Offer a 15-minute technical brainstorm on shipping their next feature faster.
+- Length: 90-110 words.
+- Sign off: "${p.name}"`,
+
+    user: `Target: ${firstName} at ${lead.company}.
+Pitch: ${lead.pitch}
+Context: ${hook}
+Creds: Built Masterbots.ai and Dinesurf.com. Expert in 21-day MVP cycles.
+Instruction: Focus on the urgency of their stage. Suggest a specific area where they can cut scope to ship faster.`
   };
 }

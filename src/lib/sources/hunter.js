@@ -9,38 +9,49 @@ export async function findEmails(domain) {
   // Strip protocol and path, keep just domain
   const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "").toLowerCase();
 
-  const res = await fetch(
-    `/api/hunter/v2/domain-search?domain=${encodeURIComponent(cleanDomain)}&type=personal&seniority=executive,senior&department=executive,it&limit=5`,
-  );
+  // Try with executive filters first, fall back to unfiltered
+  const urls = [
+    `/api/hunter/v2/domain-search?domain=${encodeURIComponent(cleanDomain)}&type=personal&seniority=executive,senior&limit=5`,
+    `/api/hunter/v2/domain-search?domain=${encodeURIComponent(cleanDomain)}&limit=5`,
+  ];
 
-  if (!res.ok) {
-    console.warn(`[hunter] Domain search failed for ${cleanDomain}: ${res.status}`);
-    return null;
+  for (const url of urls) {
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      console.warn(`[hunter] Domain search failed for ${cleanDomain}: ${res.status}`);
+      return null;
+    }
+
+    const data = await res.json();
+    const emails = data.data?.emails || [];
+
+    if (emails.length === 0) {
+      console.log(`[hunter] No results with current filters for ${cleanDomain}, trying broader...`);
+      continue;
+    }
+
+    // Prioritize: executive > senior, prefer positions like CEO/CTO/Founder
+    const founderKeywords = /founder|ceo|cto|chief|co-founder|cofounder|owner/i;
+    const sorted = [...emails].sort((a, b) => {
+      const aFounder = founderKeywords.test(a.position || "") ? 1 : 0;
+      const bFounder = founderKeywords.test(b.position || "") ? 1 : 0;
+      if (bFounder !== aFounder) return bFounder - aFounder;
+      return (b.confidence || 0) - (a.confidence || 0);
+    });
+
+    const best = sorted[0];
+    return {
+      email: best.value,
+      firstName: best.first_name || "",
+      lastName: best.last_name || "",
+      position: best.position || "",
+      confidence: best.confidence || 0,
+      domain: cleanDomain,
+    };
   }
 
-  const data = await res.json();
-  const emails = data.data?.emails || [];
-
-  if (emails.length === 0) return null;
-
-  // Prioritize: executive > senior, prefer positions like CEO/CTO/Founder
-  const founderKeywords = /founder|ceo|cto|chief|co-founder|cofounder|owner/i;
-  const sorted = [...emails].sort((a, b) => {
-    const aFounder = founderKeywords.test(a.position || "") ? 1 : 0;
-    const bFounder = founderKeywords.test(b.position || "") ? 1 : 0;
-    if (bFounder !== aFounder) return bFounder - aFounder;
-    return (b.confidence || 0) - (a.confidence || 0);
-  });
-
-  const best = sorted[0];
-  return {
-    email: best.value,
-    firstName: best.first_name || "",
-    lastName: best.last_name || "",
-    position: best.position || "",
-    confidence: best.confidence || 0,
-    domain: cleanDomain,
-  };
+  return null;
 }
 
 /**

@@ -3,6 +3,25 @@ import { PROFILES } from "../lib/profiles";
 import StatusBadge from "./StatusBadge";
 import SourceBadge from "./SourceBadge";
 
+function CopyIcon({ text }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button onClick={handleCopy} title="Copy email" style={{
+      background: "none", border: "none", cursor: "pointer", padding: "0 2px",
+      color: copied ? "#3fb950" : "#8b949e", fontSize: 12, lineHeight: 1,
+      display: "inline-flex", alignItems: "center", verticalAlign: "middle",
+    }}>
+      {copied ? "✓" : "📋"}
+    </button>
+  );
+}
+
 export default function LeadRow({ lead, activeProfile, onUpdate, onSend, onGenerate, onFindEmail, isGenerating }) {
   const [expanded, setExpanded] = useState(false);
   const [editingDraft, setEditingDraft] = useState(false);
@@ -38,7 +57,7 @@ export default function LeadRow({ lead, activeProfile, onUpdate, onSend, onGener
             <SourceBadge source={lead.source} />
           </div>
           <div style={{ color: "#8b949e", fontSize: 12 }}>
-            {lead.founder}{lead.email ? ` · ${lead.email}` : ""}
+            {lead.founder}{lead.email ? <> · {lead.email} <CopyIcon text={lead.email} /></> : ""}
             {!lead.email && lead.website && onFindEmail && (
               <button onClick={e => { e.stopPropagation(); onFindEmail(lead.id); }}
                 style={{
@@ -100,6 +119,24 @@ export default function LeadRow({ lead, activeProfile, onUpdate, onSend, onGener
           <div style={{ marginBottom: 12 }}>
             <div style={{ color: "#8b949e", fontSize: 11, marginBottom: 6, fontFamily: "monospace", letterSpacing: "0.08em" }}>COMPANY PITCH</div>
             <div style={{ color: "#c9d1d9", fontSize: 13, lineHeight: 1.6 }}>{lead.pitch}</div>
+            <div style={{ display: "flex", gap: 16, marginTop: 6 }}>
+              {lead.website && (
+                <a href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ color: "#58a6ff", fontSize: 12, textDecoration: "none" }}
+                  onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
+                  onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}
+                >🌐 {lead.website.replace(/^https?:\/\//, "")}</a>
+              )}
+              {lead.ycUrl && (
+                <a href={lead.ycUrl}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ color: "#f59e0b", fontSize: 12, textDecoration: "none" }}
+                  onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
+                  onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}
+                >YC Page ↗</a>
+              )}
+            </div>
           </div>
           {hasDraft && (
             <div>
@@ -136,15 +173,21 @@ export default function LeadRow({ lead, activeProfile, onUpdate, onSend, onGener
                     resize: "vertical", outline: "none", boxSizing: "border-box",
                   }} />
               ) : (
-                <div style={{
-                  background: "#0d1117", border: "1px solid #21262d", borderRadius: 6,
-                  padding: "14px 16px", color: "#e6edf3", fontSize: 13, lineHeight: 1.75,
-                  fontFamily: "'Georgia', serif", whiteSpace: "pre-wrap",
-                }}>{lead.draft}</div>
+                <div style={{ position: "relative" }}>
+                  <div style={{
+                    background: "#0d1117", border: "1px solid #21262d", borderRadius: 6,
+                    padding: "14px 16px", color: "#e6edf3", fontSize: 13, lineHeight: 1.75,
+                    fontFamily: "'Georgia', serif", whiteSpace: "pre-wrap",
+                  }}>{lead.draft}</div>
+                  <span style={{ position: "absolute", top: 8, right: 8 }}>
+                    <CopyIcon text={lead.draft} />
+                  </span>
+                </div>
               )}
               {lead.subject && (
-                <div style={{ marginTop: 8, color: "#8b949e", fontSize: 12 }}>
+                <div style={{ marginTop: 8, color: "#8b949e", fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
                   Subject: <span style={{ color: "#c9d1d9" }}>{lead.subject}</span>
+                  <CopyIcon text={lead.subject} />
                 </div>
               )}
             </div>

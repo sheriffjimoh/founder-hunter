@@ -3,7 +3,7 @@ import { PROFILES } from "./lib/profiles";
 import { SEED_LEADS } from "./lib/leads";
 import { buildPrompt } from "./lib/prompts";
 import { scanAllSources, SOURCES } from "./lib/sources";
-import { enrichLead } from "./lib/sources/hunter";
+import { findEmail as findEmailChain } from "./lib/sources/email-finder";
 import LeadRow from "./components/LeadRow";
 import ContactsView from "./components/ContactsView";
 import SettingsModal from "./components/SettingsModal";
@@ -197,7 +197,6 @@ export default function FounderHunter() {
     }
   }
 
-  // \u2500\u2500\u2500 FIND EMAIL VIA HUNTER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
   async function findEmail(leadId) {
     const lead = leads.find(l => l.id === leadId);
     if (!lead || !lead.website) {
@@ -206,16 +205,17 @@ export default function FounderHunter() {
     }
     showToast(`Looking up email for ${lead.company}...`);
     try {
-      const updated = await enrichLead(lead);
-      if (updated.email && updated.email !== lead.email) {
+      const { lead: updated, provider } = await findEmailChain(lead);
+      if (provider && updated.email && updated.email !== lead.email) {
         setLeads(prev => prev.map(l => l.id === leadId ? updated : l));
         saveContact(updated);
-        showToast(`Found: ${updated.email} (${updated.founderPosition || "executive"}) \u2713`);
+        const via = provider === "hunter" ? "Hunter" : "Apollo";
+        showToast(`Found: ${updated.email} (${updated.founderPosition || "executive"}) via ${via} ✓`);
       } else {
-        showToast("No email found for this domain", "error");
+        showToast("No email found across all providers", "error");
       }
     } catch (err) {
-      showToast("Hunter lookup failed, check console", "error");
+      showToast("Email lookup failed, check console", "error");
       console.error(err);
     }
   }

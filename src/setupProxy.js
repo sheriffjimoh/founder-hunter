@@ -5,10 +5,12 @@ module.exports = function(app) {
   const perplexityKey = process.env.REACT_APP_PERPLEXITY_KEY;
   const phToken = process.env.REACT_APP_PH_TOKEN;
   const hunterKey = process.env.REACT_APP_HUNTER_KEY;
+  const apolloKey = process.env.REACT_APP_APOLLO_KEY;
 
   console.log('[proxy] OpenAI key:', openaiKey ? `${openaiKey.slice(0, 12)}...` : 'MISSING');
   console.log('[proxy] Perplexity key:', perplexityKey ? `${perplexityKey.slice(0, 10)}...` : 'MISSING');
   console.log('[proxy] Hunter key:', hunterKey ? `${hunterKey.slice(0, 10)}...` : 'MISSING');
+  console.log('[proxy] Apollo key:', apolloKey ? `${apolloKey.slice(0, 10)}...` : 'MISSING');
   console.log('[proxy] PH token:', phToken ? 'set' : 'not set');
 
   // OpenAI API
@@ -72,6 +74,24 @@ module.exports = function(app) {
         },
         error: (err, req, res) => {
           console.error('[proxy] Hunter proxy error:', err.message);
+        },
+      },
+    }));
+  }
+
+  // Apollo.io API — injects api_key via header
+  if (apolloKey) {
+    app.use('/api/apollo', createProxyMiddleware({
+      target: 'https://api.apollo.io',
+      changeOrigin: true,
+      pathRewrite: { '^/api/apollo': '' },
+      on: {
+        proxyReq: (proxyReq) => {
+          proxyReq.setHeader('x-api-key', apolloKey);
+          console.log('[proxy] Forwarding to Apollo:', proxyReq.path);
+        },
+        error: (err, req, res) => {
+          console.error('[proxy] Apollo proxy error:', err.message);
         },
       },
     }));
