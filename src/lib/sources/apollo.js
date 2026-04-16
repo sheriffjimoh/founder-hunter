@@ -1,7 +1,7 @@
 /**
- * Apollo.io People Search — finds executive emails from a domain.
- * Uses the Search endpoint which is available on the free plan.
- * API: POST https://api.apollo.io/v1/mixed_people/search
+ * Apollo.io Contacts Search — finds executive emails from a domain.
+ * Uses the Contacts Search endpoint which is available on the free plan.
+ * API: POST https://api.apollo.io/v1/contacts/search
  */
 
 /**
@@ -21,11 +21,11 @@ export async function findEmails(domain, name) {
     q_organization_domains: cleanDomain,
     page: 1,
     per_page: 5,
-    person_seniorities: ["founder", "c_suite", "owner", "vp"],
+    person_seniorities: ["founder", "c_suite", "owner"],
   };
   if (name) body.q_keywords = name;
 
-  const res = await fetch("/api/apollo/v1/mixed_people/search", {
+  const res = await fetch("/api/apollo/v1/contacts/search", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -33,15 +33,15 @@ export async function findEmails(domain, name) {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    console.warn(`[apollo] People search failed for ${cleanDomain}: ${res.status}`, text);
+    console.warn(`[apollo] Contacts search failed for ${cleanDomain}: ${res.status}`, text);
     return null;
   }
 
   const data = await res.json();
-  const people = data.people || [];
+  const contacts = data.contacts || [];
 
-  // Find the first person with an email
-  const match = people.find(p => p.email);
+  // Find the first contact with an email
+  const match = contacts.find(c => c.email);
   if (!match) return null;
 
   const confidence = match.email_status === "verified" ? 95
